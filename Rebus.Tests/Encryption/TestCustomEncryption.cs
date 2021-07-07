@@ -22,6 +22,7 @@ namespace Rebus.Tests.Encryption
     {
         TransportTap _transportTap;
         BuiltinHandlerActivator _activator;
+        IBusStarter _starter;
 
         protected override void SetUp()
         {
@@ -29,7 +30,7 @@ namespace Rebus.Tests.Encryption
 
             Using(_activator);
 
-            Configure.With(_activator)
+            _starter = Configure.With(_activator)
                 .Transport(t => t.UseInMemoryTransport(new InMemNetwork(), "custom-encryption"))
                 .Options(o =>
                 {
@@ -43,7 +44,7 @@ namespace Rebus.Tests.Encryption
                         return _transportTap;
                     });
                 })
-                .Start();
+                .Create();
         }
 
         [Test]
@@ -62,6 +63,8 @@ namespace Rebus.Tests.Encryption
 
                 gotMessage.Set();
             });
+            
+            _starter.Start();
 
             _activator.Bus.SendLocal("hej").Wait();
 
@@ -74,6 +77,7 @@ namespace Rebus.Tests.Encryption
             var headers = messages.First().Headers;
 
             Assert.That(headers[EncryptionHeaders.ContentEncryption], Is.EqualTo("silly"));
+            Assert.That(headers[EncryptionHeaders.KeyId], Is.EqualTo("not-a-key"));
         }
 
         class SillyEncryptor : IEncryptor
@@ -82,7 +86,7 @@ namespace Rebus.Tests.Encryption
 
             public EncryptedData Encrypt(byte[] bytes)
             {
-                return new EncryptedData(bytes, new byte[] { 1, 2, 3 });
+                return new EncryptedData(bytes, new byte[] { 1, 2, 3 }, "not-a-key");
             }
 
             public byte[] Decrypt(EncryptedData encryptedData)

@@ -37,12 +37,9 @@ namespace Rebus.Tests.Transactions
         [Test]
         public async Task HandlesExceptionOnCommitAsOrdinaryException()
         {
-            _activator.Handle<string>(async str =>
+            _activator.AddHandlerWithBusTemporarilyStopped<string>(async str =>
             {
-                MessageContext.Current.TransactionContext.OnCommitted(async () =>
-                {
-                    throw new ConcurrencyException();
-                });
+                MessageContext.Current.TransactionContext.OnCommitted(async _ => throw new ConcurrencyException());
             });
 
             await _bus.SendLocal("hej!");

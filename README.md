@@ -6,6 +6,8 @@ Latest stable: [![NuGet stable](https://img.shields.io/nuget/v/Rebus.svg?style=f
 
 Current prerelease: [![NuGet pre](https://img.shields.io/nuget/vpre/Rebus.svg?style=flat-square)](https://www.nuget.org/packages/Rebus)
 
+Tests: [![Build status](https://ci.appveyor.com/api/projects/status/gk13466i0o57o4rp?svg=true)](https://ci.appveyor.com/project/mookid8000/rebus)
+
 This repository contains Rebus "core". You may also be interested in one of [the many integration libraries](https://github.com/rebus-org?utf8=%E2%9C%93&q=rebus.). 
 
 For information about the commercial add-on (support, tooling, etc.) to Rebus, please visit [Rebus FM's page about Rebus Pro](https://rebus.fm/rebus-pro/).
@@ -17,7 +19,7 @@ What?
 Rebus is a lean service bus implementation for .NET. It is what ThoughtWorks in 2010 called a 
 ["message bus without smarts"](https://www.thoughtworks.com/radar/tools/message-buses-without-smarts) - a library 
 that works well as the "dumb pipes" when you need asynchronous communication in your microservices that follow
-the ["smart endpoints, dump pipes"](https://martinfowler.com/articles/microservices.html#SmartEndpointsAndDumbPipes) 
+the ["smart endpoints, dumb pipes"](https://martinfowler.com/articles/microservices.html#SmartEndpointsAndDumbPipes) 
 principle.
 
 Rebus aims to have
@@ -90,6 +92,21 @@ myFavoriteIocContainer.Dispose();
 which will stuff the resulting `IBus` in the container as a singleton and use the container to look up
 message handlers. Check out the Configuration section on [the official Rebus documentation wiki][REBUS_WIKI] for
 more information on how to do this.
+
+If you want to be more specific about what types you map in an assembly, such as if the assembly is shared with other code you can map all the types under a specific namespace like this:
+
+```csharp
+Configure.With(someContainerAdapter)
+    .(...)
+    .Routing(r => r.TypeBased().MapAssemblyNamespaceOf<SomeMessageType>("namespaceInputQueue"))
+    .(...);
+
+// have IBus injected in application services for the duration of the application lifetime    
+
+// let the container dispose the bus when your application exits
+myFavoriteIocContainer.Dispose();
+```
+
 
 License
 ====

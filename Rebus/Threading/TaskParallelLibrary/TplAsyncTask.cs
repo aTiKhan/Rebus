@@ -15,17 +15,14 @@ namespace Rebus.Threading.TaskParallelLibrary
         /// </summary>
         public static TimeSpan DefaultInterval = TimeSpan.FromSeconds(10);
 
+        readonly CancellationTokenSource _tokenSource = new CancellationTokenSource();
+        readonly bool _prettyInsignificant;
         readonly string _description;
         readonly Func<Task> _action;
-        readonly bool _prettyInsignificant;
-        readonly CancellationTokenSource _tokenSource = new CancellationTokenSource();
-        readonly ManualResetEvent _finished = new ManualResetEvent(false);
         readonly ILog _log;
 
-        Task _task;
-
-        bool _disposed;
         TimeSpan _interval;
+        Task _task;
 
         /// <summary>
         /// Constructs the periodic background task with the given <paramref name="description"/>, periodically executing the given <paramref name="action"/>,
@@ -33,8 +30,9 @@ namespace Rebus.Threading.TaskParallelLibrary
         /// </summary>
         public TplAsyncTask(string description, Func<Task> action, IRebusLoggerFactory rebusLoggerFactory, bool prettyInsignificant)
         {
-            _description = description;
-            _action = action;
+            if (rebusLoggerFactory == null) throw new ArgumentNullException(nameof(rebusLoggerFactory));
+            _description = description ?? throw new ArgumentNullException(nameof(description));
+            _action = action ?? throw new ArgumentNullException(nameof(action));
             _prettyInsignificant = prettyInsignificant;
             _log = rebusLoggerFactory.GetLogger<TplAsyncTask>();
             Interval = DefaultInterval;
@@ -56,7 +54,7 @@ namespace Rebus.Threading.TaskParallelLibrary
         /// </summary>
         public void Start()
         {
-            if (_disposed)
+            if (_tokenSource.IsCancellationRequested)
             {
                 throw new InvalidOperationException($"Cannot start periodic task '{_description}' because it has been disposed!");
             }
@@ -95,10 +93,6 @@ namespace Rebus.Threading.TaskParallelLibrary
                 {
                     // it's fine, we're shutting down
                 }
-                finally
-                {
-                    _finished.Set();
-                }
             });
         }
 
@@ -106,27 +100,23 @@ namespace Rebus.Threading.TaskParallelLibrary
         /// Stops the background task
         /// </summary>
         public void Dispose()
-        {
-            if (_disposed) return;
+        {           
+            // Did we stop already?
+            if (_tokenSource.IsCancellationRequested) return;
 
-            try
+            // if it was never started, we don't do anything
+            if (_task == null) return;
+
+            LogStartStop("Stopping periodic task {taskDescription}", _description);
+
+            _tokenSource.Cancel();
+
+            // Note: Wait throws if the task failed, but the way the task is written above,
+            //       it always completes (errors are logged and swallowed).
+            if (!_task.Wait(5000 /*ms*/))
             {
-                // if it was never started, we don't do anything
-                if (_task == null) return;
-
-                LogStartStop("Stopping periodic task {taskDescription}", _description);
-
-                _tokenSource.Cancel();
-
-                if (!_finished.WaitOne(TimeSpan.FromSeconds(5)))
-                {
-                    _log.Warn("Periodic task {taskDescription} did not finish within 5 second timeout!", _description);
-                }
-            }
-            finally
-            {
-                _disposed = true;
-            }
+                _log.Warn("Periodic task {taskDescription} did not finish within 5 second timeout!", _description);
+            }            
         }
 
         void LogStartStop(string message, params object[] objs)

@@ -13,8 +13,7 @@ namespace Rebus.Pipeline
     {
         internal MessageContext(ITransactionContext transactionContext)
         {
-            if (transactionContext == null) throw new ArgumentNullException(nameof(transactionContext));
-            TransactionContext = transactionContext;
+            TransactionContext = transactionContext ?? throw new ArgumentNullException(nameof(transactionContext));
         }
 
         /// <summary>
@@ -53,10 +52,10 @@ namespace Rebus.Pipeline
             get
             {
                 var transactionContext = AmbientTransactionContext.Current;
-                
-                return transactionContext == null 
-                    ? null 
-                    : new MessageContext(transactionContext);
+
+                return transactionContext != null && transactionContext.Items.ContainsKey(StepContext.StepContextKey)
+                    ? new MessageContext(transactionContext)
+                    : null;
             }
         }
     }

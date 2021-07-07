@@ -12,16 +12,14 @@ namespace Rebus.Transport
     /// </summary>
     public class RebusTransactionScope : IDisposable
     {
+        readonly ITransactionContext _previousTransactionContext = AmbientTransactionContext.Current;
         readonly TransactionContext _transactionContext = new TransactionContext();
 
         /// <summary>
         /// Creates a new transaction context and mounts it on <see cref="AmbientTransactionContext.Current"/>, making it available for Rebus
         /// to pick up. The context can also be retrieved simply via <see cref="TransactionContext"/>
         /// </summary>
-        public RebusTransactionScope()
-        {
-            AmbientTransactionContext.SetCurrent(_transactionContext);
-        }
+        public RebusTransactionScope() => AmbientTransactionContext.SetCurrent(_transactionContext);
 
         /// <summary>
         /// Gets the transaction context instance that this scope is holding
@@ -45,11 +43,11 @@ namespace Rebus.Transport
         {
             try
             {
-                _transactionContext?.Dispose();
+                _transactionContext.Dispose();
             }
             finally
             {
-                AmbientTransactionContext.SetCurrent(null);
+                AmbientTransactionContext.SetCurrent(_previousTransactionContext);
             }
         }
     }
